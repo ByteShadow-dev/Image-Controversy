@@ -33,7 +33,6 @@ You MUST return your response as a valid JSON object matching this schema:
 """
 
 async def parse_instruction(payload: InstructionRequest):
-    # Using Llama 3.3 70B via Groq Free Tier
     MODEL_ID = "openai/gpt-oss-20b"
     
     try:
