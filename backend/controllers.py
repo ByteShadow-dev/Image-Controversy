@@ -1,9 +1,11 @@
-from modals import InstructionRequest, ParsedInstructionResponse
+from modals import InstructionRequest, ParsedInstructionResponse, EditedImageResponse
 import os
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 from groq import Groq, GroqError
 from dotenv import load_dotenv
+from models.backgroundRemoval import remove_background
+import json
 
 load_dotenv()
 
@@ -11,10 +13,6 @@ try:
     groq_client = Groq()
 except Exception as e:
     raise RuntimeError(f"Failed to initialize Groq Client: {e}")
-
-async def process_instruction(request: InstructionRequest):
-    # Access the validated field
-    return {"message": f"You sent: {request.user_instruction}"}
 
 SYSTEM_PROMPT = """
 You are a precise classification API that parses image-editing commands.
@@ -28,7 +26,7 @@ Analyze the user's input and classify it based on these strict definitions:
 You MUST return your response as a valid JSON object matching this schema:
 {
   "category": "Tone & Colour" or "Background Removal",
-  "operation": "A brief summary of the exact action being requested"
+  "operation": "Comma separated actions needed to be taken on the image"
 }
 """
 
@@ -49,9 +47,10 @@ async def parse_instruction(payload: InstructionRequest):
         
         # Extracted response string
         raw_json_output = chat_completion.choices[0].message.content
-        
+        data = json.loads(raw_json_output)
+        data["image_path"] = payload.image_path
         # Pydantic parses and validates the JSON string into the required response schema
-        validated_response = ParsedInstructionResponse.model_validate_json(raw_json_output)
+        validated_response = ParsedInstructionResponse.model_validate(data)
         return validated_response
 
     except GroqError as ge:
@@ -69,3 +68,21 @@ async def parse_instruction(payload: InstructionRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Parser Error: {str(e)}"
         )
+        
+async def edit_image(payload : InstructionRequest):
+    parsed: ParsedInstructionResponse = await parse_instruction(payload)
+    if parsed.category == "Background Removal":
+        remove_background(payload.image_path, f"{payload.image_path}_output.png")
+    elif parsed.category == "Tone & Colour":
+        pass
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported category: {parsed.category}"
+        )
+    
+    return EditedImageResponse(
+        image_path=f"{payload.image_path}_output.png",
+        explaination=parsed.category,
+    )
+        
