@@ -36,3 +36,9 @@ class ImageNode(BaseModel):
 
 class RootImageRequest(BaseModel):
     image_path: str
+
+class ChildImageRequest(BaseModel):
+    image_path: str
+
+class EditImageRequest(BaseModel):
+    instruction: str
