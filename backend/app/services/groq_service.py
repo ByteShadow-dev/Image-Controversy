@@ -1,13 +1,11 @@
-from modals import InstructionRequest, ParsedInstructionResponse, EditedImageResponse
-import os
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel, Field
-from groq import Groq, GroqError
-from dotenv import load_dotenv
-from models.backgroundRemoval import remove_background
 import json
+from groq import Groq, GroqError
+from fastapi import HTTPException, status
+from app.models.image import InstructionRequest, ParsedInstructionResponse, EditedImageResponse, ImageNode
+from app.core.database import get_database
+from app.services.background_removal import remove_background
 
-load_dotenv()
+image_nodes = get_database("images")
 
 try:
     groq_client = Groq()
@@ -49,6 +47,7 @@ async def parse_instruction(payload: InstructionRequest):
         raw_json_output = chat_completion.choices[0].message.content
         data = json.loads(raw_json_output)
         data["image_path"] = payload.image_path
+        data['tree_id'] = payload.tree_id
         # Pydantic parses and validates the JSON string into the required response schema
         validated_response = ParsedInstructionResponse.model_validate(data)
         return validated_response
@@ -69,20 +68,28 @@ async def parse_instruction(payload: InstructionRequest):
             detail=f"Internal Parser Error: {str(e)}"
         )
         
-async def edit_image(payload : InstructionRequest):
+async def edit_image(payload: InstructionRequest):
     parsed: ParsedInstructionResponse = await parse_instruction(payload)
+    node = ImageNode(
+        tree_id=payload.tree_id,
+        parent_id=None,
+        image_path=payload.image_path,
+        edit=parsed,
+        status="Pending"
+    )
     if parsed.category == "Background Removal":
-        remove_background(payload.image_path, f"{payload.image_path}_output.png")
-    elif parsed.category == "Tone & Colour":
-        pass
+        # remove_background(payload.image_path, f"{payload.image_path}_output.png")
+        node.status = "Completed"
+        node.image_path = f"{payload.image_path}_output.png"
+        await image_nodes.insert_one(node.model_dump(by_alias=True, exclude_none=True))
+        
     else:
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported category: {parsed.category}"
-        )
-    
+        )  
     return EditedImageResponse(
+        tree_id=payload.tree_id,
         image_path=f"{payload.image_path}_output.png",
         explaination=parsed.category,
     )
-        
