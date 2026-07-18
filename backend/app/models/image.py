@@ -42,3 +42,13 @@ class ChildImageRequest(BaseModel):
 
 class EditImageRequest(BaseModel):
     instruction: str
+
+class ParsedInstructionResponse(BaseModel):
+    tree_id: PyObjectId
+    category: str = Field(
+        ...,
+        description="Must be exactly 'Tone & Colour', 'Background Removal', or 'Style Transfer'."
+    )
+    operation: str
+    style: Optional[str] = None   # free-text style description, e.g. "watercolor"
+    image_path: str
