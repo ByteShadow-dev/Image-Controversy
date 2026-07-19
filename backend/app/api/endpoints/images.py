@@ -107,9 +107,11 @@ async def upload_root_image(
             category="Original",
             operation="Original",
             image_path=saved_path,
+            explanation="Original uploaded image.",
         ),
         status="Completed",
-        image_hash=file_hash,
+        # image_hash=file_hash,
+        explanation="Original uploaded image.",
     )
 
     try:
@@ -170,7 +172,7 @@ async def upload_child_image(
             image_path=saved_path,
             instruction=f"Upload file: {file.filename}",
             explanation="Manually uploaded child image node.",
-            image_hash=file_hash,
+            # image_hash=file_hash,
         )
     except Exception as e:
         if is_new and os.path.exists(saved_path):
@@ -250,7 +252,7 @@ async def edit_child_image(
             instruction=request.instruction,
             explanation=edit_result.explanation,
             category=edit_result.category,
-            image_hash=file_hash,
+            # image_hash=file_hash,
         )
     except Exception as e:
         if is_new and os.path.exists(output_path):
