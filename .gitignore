@@ -41,6 +41,7 @@ Thumbs.db
 
 # Environment variables
 .env
+<<<<<<< Updated upstream
 .env.local
 *.env.*
 
@@ -80,3 +81,9 @@ htmlcov/
 *.tar.xz
 *.tar.zst
 ```
+=======
+.venv
+.vscode
+__pycache_
+node_modules
+>>>>>>> Stashed changes
