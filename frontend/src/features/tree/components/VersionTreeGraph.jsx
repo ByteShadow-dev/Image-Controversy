@@ -18,8 +18,11 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, FileImage, GitBranch, CheckCircle2, Clock, XCircle } from 'lucide-react';
-import { useTreeStore, useSelectionStore } from '../../../store';
+import { Folder, FileImage, GitBranch, CheckCircle2, Clock, XCircle, Trash2 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTreeStore, useSelectionStore, useUIStore } from '../../../store';
+import { deleteProjectNode } from '../../../services';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 const NODE_W = 120;   // card width  (px)
@@ -159,8 +162,11 @@ function makePath(px, py, cx, cy) {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 function VersionTreeGraph() {
+  const { projectId } = useParams();
+  const queryClient = useQueryClient();
   const { tree, activeNodeId, setActiveNode } = useTreeStore();
   const { setSelectedNode } = useSelectionStore();
+  const { addNotification } = useUIStore();
 
   // Pan state for the graph itself
   const svgRef = useRef(null);
@@ -239,6 +245,25 @@ function VersionTreeGraph() {
     setSelectedNode(pos.id, pos.node);
   }, [setActiveNode, setSelectedNode]);
 
+  const handleDeleteNode = useCallback(async () => {
+    if (!projectId || !activeNodeId) return;
+    if (!window.confirm('Delete this version and every version derived from it? This cannot be undone.')) return;
+
+    try {
+      const result = await deleteProjectNode(projectId, activeNodeId);
+      setActiveNode(result.parent_id || null);
+      setSelectedNode(result.parent_id || null, null);
+      await queryClient.invalidateQueries({ queryKey: ['tree', projectId] });
+      addNotification({ type: 'success', title: 'Version Deleted', message: 'The selected version branch was deleted.' });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Delete Failed',
+        message: error.response?.data?.detail || error.message,
+      });
+    }
+  }, [projectId, activeNodeId, setActiveNode, setSelectedNode, queryClient, addNotification]);
+
   // ── No tree yet ──
   if (!tree) {
     return (
@@ -263,6 +288,15 @@ function VersionTreeGraph() {
         <span className="text-xs text-adobe-textMuted">
           {positions.length} node{positions.length !== 1 ? 's' : ''}
         </span>
+        <button
+          onClick={handleDeleteNode}
+          disabled={!activeNodeId}
+          className="btn-icon h-7 w-7 p-1 text-adobe-error disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Delete selected version branch"
+          aria-label="Delete selected version branch"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
 
       {/* SVG graph */}

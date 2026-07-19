@@ -1,16 +1,14 @@
 import { useCallback } from 'react';
-import { 
-  Upload, Undo2, Redo2, Download, RotateCcw, 
-  ZoomIn, ZoomOut, Maximize, Save, GitBranch 
-} from 'lucide-react';
+import { Upload, Download, ZoomIn, ZoomOut, Maximize, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useViewportStore, useHistoryStore, useProjectStore, useUIStore, useTreeStore } from '../../../store';
-import { branchNode, exportImage, downloadExport } from '../../../services';
+import { useQueryClient } from '@tanstack/react-query';
+import { useViewportStore, useProjectStore, useUIStore, useTreeStore } from '../../../store';
+import { deleteProject, getNode } from '../../../services';
 
 function Toolbar() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { zoomIn, zoomOut, fitToScreen } = useViewportStore();
-  const { canUndo, canRedo } = useHistoryStore();
   const { projectId, clearProject } = useProjectStore();
   const { activeNodeId } = useTreeStore();
   const { addNotification } = useUIStore();
@@ -19,15 +17,6 @@ function Toolbar() {
     clearProject();
     navigate('/');
   }, [clearProject, navigate]);
-
-  const handleUndo = useCallback(() => {
-    // Undo logic would be implemented with history store
-    console.log('Undo');
-  }, []);
-
-  const handleRedo = useCallback(() => {
-    console.log('Redo');
-  }, []);
 
   const handleExport = useCallback(async () => {
     if (!activeNodeId) {
@@ -40,13 +29,22 @@ function Toolbar() {
     }
 
     try {
-      const data = await exportImage(activeNodeId);
-      const blob = await downloadExport(data.export_id);
+      const node = await getNode(activeNodeId);
+      const filename = node.image_path?.split(/[\\/]/).pop();
+      if (!filename) throw new Error('The selected version has no image file');
+
+      const uploadsBase = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:8000/uploads';
+      const response = await fetch(`${uploadsBase.replace(/\/$/, '')}/${encodeURIComponent(filename)}`);
+      if (!response.ok) throw new Error('Unable to download the selected image');
+
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `export-${activeNodeId.slice(0, 8)}.png`;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
       
       addNotification({
@@ -63,43 +61,23 @@ function Toolbar() {
     }
   }, [activeNodeId, addNotification]);
 
-  const handleReset = useCallback(() => {
-    fitToScreen();
-  }, [fitToScreen]);
-
-  const handleSave = useCallback(() => {
-    addNotification({
-      type: 'success',
-      title: 'Saved',
-      message: 'Project saved successfully',
-    });
-  }, [addNotification]);
-
-  const handleBranch = useCallback(async () => {
-    if (!activeNodeId) {
-      addNotification({
-        type: 'warning',
-        title: 'No Selection',
-        message: 'Please select a version to branch from',
-      });
-      return;
-    }
+  const handleDeleteProject = useCallback(async () => {
+    if (!projectId || !window.confirm('Delete this project and all of its versions? This cannot be undone.')) return;
 
     try {
-      await branchNode(activeNodeId, 'New branch');
-      addNotification({
-        type: 'success',
-        title: 'Branch Created',
-        message: 'New branch created successfully',
-      });
+      await deleteProject(projectId);
+      await queryClient.invalidateQueries({ queryKey: ['projects'] });
+      clearProject();
+      navigate('/');
+      addNotification({ type: 'success', title: 'Project Deleted', message: 'The project and its versions were deleted.' });
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Branch Failed',
-        message: error.message,
+        title: 'Delete Failed',
+        message: error.response?.data?.detail || error.message,
       });
     }
-  }, [activeNodeId, addNotification]);
+  }, [projectId, clearProject, navigate, addNotification, queryClient]);
 
   return (
     <div className="h-14 bg-adobe-panel border-b border-adobe-border flex items-center justify-between px-4">
@@ -122,6 +100,14 @@ function Toolbar() {
           <ZoomIn size={18} />
         </button>
         <div className="w-px h-6 bg-adobe-border mx-2"></div>
+        <button
+          onClick={handleDeleteProject}
+          disabled={!projectId}
+          className="btn-icon text-adobe-error disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Delete Project"
+        >
+          <Trash2 size={18} />
+        </button>
         <button onClick={handleExport} className="btn-primary ml-2" title="Export Image">
           <Download size={18} />
           <span className="hidden lg:inline">Save</span>

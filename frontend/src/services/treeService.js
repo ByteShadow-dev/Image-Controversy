@@ -22,3 +22,13 @@ export const deleteTreeNode = async (nodeId) => {
   const response = await apiClient.delete(`/tree/${nodeId}`);
   return response.data;
 };
+
+export const deleteProject = async (projectId) => {
+  const response = await apiClient.delete(`/tree/${projectId}`);
+  return response.data;
+};
+
+export const deleteProjectNode = async (projectId, nodeId) => {
+  const response = await apiClient.delete(`/tree/${projectId}/nodes/${nodeId}`);
+  return response.data;
+};
