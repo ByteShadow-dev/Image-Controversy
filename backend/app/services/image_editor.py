@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 from app.models.image import InstructionRequest, ParsedInstructionResponse
 from app.services.background_removal import remove_background
+from app.services.style_transfer import apply_style_transfer
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +98,25 @@ class BackgroundRemovalProcessor(EditProcessor):
             )
         return output_path
 
-
+class ToneColourProcessor(EditProcessor):
+    def process(
+        self,
+        image_path: str,
+        operation: str,
+        parsed: Optional[ParsedInstructionResponse] = None,
+    ) -> str:
+        base, ext = os.path.splitext(image_path)
+        output_path = f"{base}_tone_colour_{operation}_{int(time.time())}.png"
+        try:
+            apply_style_transfer(image_path, output_path, operation)
+                
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Style Transfer failed: {exc}",
+            )
+        return output_path
+    
 # ---------------------------------------------------------------------------
 # Registry — maps category strings → processor instances
 # To add a new edit type:
@@ -107,7 +126,7 @@ class BackgroundRemovalProcessor(EditProcessor):
 
 PROCESSOR_REGISTRY: dict[str, EditProcessor] = {
     "Background Removal": BackgroundRemovalProcessor(),
-    # "Tone & Colour": ToneColourProcessor(),   ← uncomment when ready
+    "Tone & Colour": ToneColourProcessor(),
 }
 
 
