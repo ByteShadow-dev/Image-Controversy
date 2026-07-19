@@ -33,7 +33,18 @@ function resolveImageUrl(imagePath) {
 function buildReplyContent(newNode, instruction) {
   const category = newNode.edit?.category || 'Edit';
   const operation = newNode.edit?.operation || instruction;
-  return `✅ **${category}** applied successfully.\n\n_${operation}_`;
+  const explanation = newNode.edit?.explanation || newNode.explanation || '';
+  const lines = [
+    `✅ **${category}** applied successfully.`,
+    '',
+    `_${operation}_`,
+  ];
+
+  if (explanation) {
+    lines.push('', explanation);
+  }
+
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------

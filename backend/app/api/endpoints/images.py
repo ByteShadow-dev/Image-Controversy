@@ -107,9 +107,11 @@ async def upload_root_image(
             category="Original",
             operation="Original",
             image_path=saved_path,
+            explanation="Original uploaded image.",
         ),
         status="Completed",
         image_hash=file_hash,
+        explanation="Original uploaded image.",
     )
 
     try:

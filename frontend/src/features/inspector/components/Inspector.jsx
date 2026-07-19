@@ -111,6 +111,15 @@ function Inspector({ onClose }) {
             </div>
           )}
 
+          {selectedNodeData.explanation && (
+            <div>
+              <label className="text-xs text-adobe-textMuted block mb-1">Explanation</label>
+              <p className="text-sm text-adobe-text bg-adobe-dark px-3 py-2 rounded border border-adobe-border">
+                {selectedNodeData.explanation}
+              </p>
+            </div>
+          )}
+
           {selectedNodeData.children && selectedNodeData.children.length > 0 && (
             <div>
               <label className="text-xs text-adobe-textMuted block mb-1">Children</label>
