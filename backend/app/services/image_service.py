@@ -119,3 +119,28 @@ async def create_child_node(
     result = await image_collection.insert_one(node.model_dump(by_alias=True, exclude_none=True))
     node.id = result.inserted_id
     return node
+
+async def create_child_node(
+    tree_id: str,
+    parent_id: str,
+    image_path: str,
+    instruction: str,
+    explanation: str,
+    category: str,
+    status_str: str = "Completed"
+):
+    node = ImageNode(
+        tree_id=ObjectId(tree_id) if ObjectId.is_valid(tree_id) else tree_id,
+        parent_id=parent_id,
+        image_path=image_path,
+        edit=ParsedInstructionResponse(
+            tree_id=ObjectId(tree_id) if ObjectId.is_valid(tree_id) else tree_id,
+            category=category,
+            operation=instruction,
+            image_path=image_path
+        ),
+        status=status_str
+    )
+    result = await image_collection.insert_one(node.model_dump(by_alias=True, exclude_none=True))
+    node.id = result.inserted_id
+    return node
