@@ -110,9 +110,11 @@ async def create_child_node(
             category=category,
             operation=instruction,
             image_path=image_path,
+            explanation=explanation,
         ),
         status=status_str,
         image_hash=image_hash,
+        explanation=explanation,
     )
     result = await image_collection.insert_one(node.model_dump(by_alias=True, exclude_none=True))
     node.id = result.inserted_id

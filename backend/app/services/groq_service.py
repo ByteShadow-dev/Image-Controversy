@@ -35,7 +35,8 @@ Analyze the user's input and classify it based on these strict definitions:
 You MUST return your response as a valid JSON object matching this schema:
 {
   "category": "Tone & Colour" or "Background Removal",
-  "operation": "Comma separated actions needed to be taken on the image"
+  "operation": "Comma separated actions needed to be taken on the image",
+  "explanation": "One short, plain-language sentence stating what will change and why it fulfils the user's request. Do not claim to have inspected the image."
 }
 """
 
@@ -61,6 +62,7 @@ async def parse_instruction(payload: InstructionRequest) -> ParsedInstructionRes
         data = json.loads(raw_json_output)
         data["image_path"] = payload.image_path
         data["tree_id"] = payload.tree_id
+        data["explanation"] = data.get("explanation", "")
 
         validated_response = ParsedInstructionResponse.model_validate(data)
         return validated_response

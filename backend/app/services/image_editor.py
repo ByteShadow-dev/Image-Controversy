@@ -25,10 +25,12 @@ from typing import Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from app.models.image import InstructionRequest, ParsedInstructionResponse
 from app.services.background_removal import remove_background
-from app.services.style_transfer import apply_style_transfer
+# from app.services.style_transfer_2 import apply_style_transfer
+from app.services.style_transfer_3 import apply_style_transfer
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +92,7 @@ class BackgroundRemovalProcessor(EditProcessor):
         base, ext = os.path.splitext(image_path)
         output_path = f"{base}_bg_removed_{int(time.time())}.png"
         try:
-            remove_background(image_path, output_path)
+            run_in_threadpool(remove_background, image_path, output_path)
         except Exception as exc:
             raise HTTPException(
                 status_code=500,
@@ -109,7 +111,6 @@ class ToneColourProcessor(EditProcessor):
         output_path = f"{base}_tone_colour_{operation}_{int(time.time())}.png"
         try:
             apply_style_transfer(image_path, output_path, operation)
-                
         except Exception as exc:
             raise HTTPException(
                 status_code=500,
@@ -185,7 +186,7 @@ class PipelineImageEditor(ImageEditorInterface):
 
         return EditResult(
             output_image_path=output_path,
-            explanation=f"{parsed.category}: {parsed.operation}",
+            explanation=parsed.explanation or f"Applied {parsed.operation} to fulfil your request.",
             category=parsed.category,
         )
 
