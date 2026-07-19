@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Toolbar from '../features/toolbar/components/Toolbar';
 import StatusBar from '../features/statusbar/components/StatusBar';
-import VersionTree from '../features/tree/components/VersionTree';
+import VersionTreeGraph from '../features/tree/components/VersionTreeGraph';
 import ChatPanel from '../features/chat/components/ChatPanel';
 import Inspector from '../features/inspector/components/Inspector';
 import { useUIStore } from '../store';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-function EditorLayout() {
+function EditorLayout({ children }) {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const [showInspector, setShowInspector] = useState(true);
 
@@ -22,7 +22,7 @@ function EditorLayout() {
         {/* Left Sidebar - Version Tree */}
         <div className={`flex-shrink-0 transition-all duration-300 ${sidebarCollapsed.left ? 'w-0' : 'w-72'} overflow-hidden`}>
           <div className="h-full border-r border-adobe-border bg-adobe-panel">
-            <VersionTree />
+            <VersionTreeGraph />
           </div>
         </div>
         
@@ -41,7 +41,7 @@ function EditorLayout() {
         
         {/* Center - Canvas */}
         <div className="flex-1 overflow-hidden bg-adobe-darker">
-          <Outlet />
+          {children || <Outlet />}
         </div>
         
         {/* Collapse Toggle - Right */}

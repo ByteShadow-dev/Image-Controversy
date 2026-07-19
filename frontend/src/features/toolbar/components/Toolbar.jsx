@@ -110,35 +110,6 @@ function Toolbar() {
           <span className="hidden lg:inline">Upload</span>
         </button>
       </div>
-
-      {/* Center Section - Edit Actions */}
-      <div className="flex items-center gap-1">
-        <button 
-          onClick={handleUndo} 
-          disabled={!canUndo()}
-          className="btn-icon disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Undo (Ctrl+Z)"
-        >
-          <Undo2 size={18} />
-        </button>
-        <button 
-          onClick={handleRedo}
-          disabled={!canRedo()}
-          className="btn-icon disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Redo (Ctrl+Y)"
-        >
-          <Redo2 size={18} />
-        </button>
-        <div className="w-px h-6 bg-adobe-border mx-2"></div>
-        <button 
-          onClick={handleBranch}
-          className="btn-icon"
-          title="Create Branch (Ctrl+B)"
-        >
-          <GitBranch size={18} />
-        </button>
-      </div>
-
       {/* Right Section - View & Export */}
       <div className="flex items-center gap-1">
         <button onClick={zoomOut} className="btn-icon" title="Zoom Out (Ctrl+-)">
@@ -151,15 +122,9 @@ function Toolbar() {
           <ZoomIn size={18} />
         </button>
         <div className="w-px h-6 bg-adobe-border mx-2"></div>
-        <button onClick={handleReset} className="btn-icon" title="Reset View">
-          <RotateCcw size={18} />
-        </button>
-        <button onClick={handleSave} className="btn-icon" title="Save (Ctrl+S)">
-          <Save size={18} />
-        </button>
         <button onClick={handleExport} className="btn-primary ml-2" title="Export Image">
           <Download size={18} />
-          <span className="hidden lg:inline">Export</span>
+          <span className="hidden lg:inline">Save</span>
         </button>
       </div>
     </div>

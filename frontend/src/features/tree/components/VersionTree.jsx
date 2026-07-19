@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import { Tree, TreeNode } from 'react-arborist';
+import { Tree } from 'react-arborist';
 import { ChevronRight, ChevronDown, Folder, FileImage, MoreVertical } from 'lucide-react';
 import { useTreeStore, useSelectionStore } from '../../../store';
 import { formatDate } from '../../../utils';
@@ -118,7 +118,7 @@ function VersionTree() {
           height={400}
           rowHeight={44}
           indent={20}
-          onSelect={(node) => handleSelect(node)}
+          onSelect={(nodes) => handleSelect(nodes?.[0])}
         >
           {renderNode}
         </Tree>

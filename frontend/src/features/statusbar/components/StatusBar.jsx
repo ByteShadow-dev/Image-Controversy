@@ -12,26 +12,6 @@ function StatusBar() {
     <div className="h-7 bg-adobe-panel border-t border-adobe-border flex items-center justify-between px-3 text-xs">
       {/* Left Section - Connection & Zoom */}
       <div className="flex items-center gap-4">
-        {/* Connection Status */}
-        <div className="flex items-center gap-1.5">
-          {connectionStatus === CONNECTION_STATUS.CONNECTED ? (
-            <Wifi size={12} className="text-adobe-success" />
-          ) : connectionStatus === CONNECTION_STATUS.RECONNECTING ? (
-            <Wifi size={12} className="text-adobe-warning animate-pulse" />
-          ) : (
-            <WifiOff size={12} className="text-adobe-error" />
-          )}
-          <span className={`text-adobe-textMuted ${
-            connectionStatus === CONNECTION_STATUS.CONNECTED ? 'text-adobe-success' : ''
-          }`}>
-            {connectionStatus === CONNECTION_STATUS.CONNECTED 
-              ? 'Connected' 
-              : connectionStatus === CONNECTION_STATUS.RECONNECTING 
-                ? 'Reconnecting...' 
-                : 'Disconnected'}
-          </span>
-        </div>
-
         {/* Zoom Level */}
         <div className="flex items-center gap-1.5">
           <span className="text-adobe-textMuted">Zoom:</span>

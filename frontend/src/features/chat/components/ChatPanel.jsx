@@ -1,16 +1,48 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, RefreshCw } from 'lucide-react';
+import { Send, Loader2, RefreshCw, Wand2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useParams } from 'react-router-dom';
 import { useChatStore, useTreeStore, useUIStore } from '../../../store';
-import { sendPrompt, streamPrompt, getChatHistory } from '../../../services';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { apiClient } from '../../../services';
+import { useMutation } from '@tanstack/react-query';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts a backend image_path (absolute disk path) into a URL the browser
+ * can load.  The FastAPI backend mounts /uploads → the uploads directory.
+ */
+function resolveImageUrl(imagePath) {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  // Extract just the filename from the absolute Windows/Unix path
+  const filename = imagePath.split(/[\\/]/).pop();
+  return `http://localhost:8000/uploads/${filename}`;
+}
+
+/**
+ * Builds a human-friendly reply from the returned ImageNode.
+ */
+function buildReplyContent(newNode, instruction) {
+  const category = newNode.edit?.category || 'Edit';
+  const operation = newNode.edit?.operation || instruction;
+  return `✅ **${category}** applied successfully.\n\n_${operation}_`;
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 function ChatMessage({ message, onRetry }) {
   const isUser = message.role === 'user';
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -23,21 +55,21 @@ function ChatMessage({ message, onRetry }) {
         {isUser ? (
           <span className="text-xs font-bold text-white">U</span>
         ) : (
-          <span className="text-xs font-bold text-adobe-text">AI</span>
+          <Wand2 size={14} className="text-adobe-text" />
         )}
       </div>
-      
+
       <div className={`flex-1 max-w-[80%] ${isUser ? 'text-right' : ''}`}>
         <div className={`inline-block px-4 py-2 rounded-lg ${
-          isUser 
-            ? 'bg-adobe-accent text-white' 
+          isUser
+            ? 'bg-adobe-accent text-white'
             : 'bg-adobe-panel border border-adobe-border text-adobe-text'
         }`}>
           {isUser ? (
             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown 
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
               >
@@ -46,17 +78,17 @@ function ChatMessage({ message, onRetry }) {
             </div>
           )}
         </div>
-        
-        {!isUser && message.image_url && (
+
+        {message.image_url && (
           <div className="mt-2">
-            <img 
-              src={message.image_url} 
-              alt="Generated" 
+            <img
+              src={message.image_url}
+              alt="Processed result"
               className="max-w-full rounded-md border border-adobe-border"
             />
           </div>
         )}
-        
+
         {!isUser && onRetry && (
           <button
             onClick={onRetry}
@@ -66,7 +98,7 @@ function ChatMessage({ message, onRetry }) {
             Retry
           </button>
         )}
-        
+
         <p className="text-xs text-adobe-textMuted mt-1">
           {new Date(message.timestamp).toLocaleTimeString()}
         </p>
@@ -84,26 +116,35 @@ function TypingIndicator() {
       className="flex gap-3"
     >
       <div className="w-8 h-8 rounded-full bg-adobe-border flex items-center justify-center">
-        <span className="text-xs font-bold text-adobe-text">AI</span>
+        <Wand2 size={14} className="text-adobe-text" />
       </div>
       <div className="bg-adobe-panel border border-adobe-border rounded-lg px-4 py-3">
-        <div className="flex gap-1">
-          <span className="w-2 h-2 bg-adobe-textMuted rounded-full animate-bounce"></span>
-          <span className="w-2 h-2 bg-adobe-textMuted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-          <span className="w-2 h-2 bg-adobe-textMuted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+        <div className="flex gap-1 items-center">
+          <span className="text-xs text-adobe-textMuted mr-2">Processing…</span>
+          <span className="w-2 h-2 bg-adobe-textMuted rounded-full animate-bounce" />
+          <span className="w-2 h-2 bg-adobe-textMuted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+          <span className="w-2 h-2 bg-adobe-textMuted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
         </div>
       </div>
     </motion.div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main panel
+// ---------------------------------------------------------------------------
+
 function ChatPanel() {
+  const { projectId } = useParams();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
+
   const { messages, addMessage, setTyping, isTyping } = useChatStore();
-  const { activeNodeId } = useTreeStore();
+  const { activeNodeId, addNode, setActiveNode, expandedNodes, toggleExpand } = useTreeStore();
   const { addNotification } = useUIStore();
-  const { data: projectId } = useQuery({ queryKey: ['project'] });
+
+  // Track the last prompt so the retry handler can re-use it
+  const lastPromptRef = useRef('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -111,67 +152,120 @@ function ChatPanel() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
+
+  // -------------------------------------------------------------------------
+  // Mutation — calls POST /api/images/{projectId}/{nodeId}/edit
+  // -------------------------------------------------------------------------
 
   const chatMutation = useMutation({
-    mutationFn: ({ prompt, nodeId }) => sendPrompt(prompt, nodeId),
-    onSuccess: (data) => {
+    mutationFn: async ({ prompt, nodeId }) => {
+      const response = await apiClient.post(
+        `/images/${projectId}/${nodeId}/edit`,
+        { instruction: prompt },
+        { timeout: 120_000 }   // background removal can take up to ~60 s
+      );
+      return response.data;
+    },
+
+    onSuccess: (newNode, { prompt }) => {
+      const newNodeId = newNode.id || newNode._id;
+      const parentNodeId = newNode.parent_id;
+      const imageUrl = resolveImageUrl(newNode.image_path);
+
+      // Add AI reply with the edited image
       addMessage({
-        id: data.message_id,
+        id: `reply-${newNodeId}`,
         role: 'assistant',
-        content: data.response,
+        content: buildReplyContent(newNode, prompt),
         timestamp: new Date().toISOString(),
-        image_url: data.image_url,
+        image_url: imageUrl,
       });
+
+      // Insert the new node into the version tree under its parent
+      const formattedNode = {
+        id: newNodeId,
+        name: newNode.edit?.operation || prompt,
+        type: 'edit',
+        image_path: newNode.image_path,
+        status: newNode.status,
+        nodeData: newNode,
+        children: [],
+      };
+
+      addNode(parentNodeId, formattedNode);
+
+      // Expand the parent so the new child is visible, then select the new node
+      if (parentNodeId && !expandedNodes.has(parentNodeId)) {
+        toggleExpand(parentNodeId);
+      }
+      setActiveNode(newNodeId);
       setTyping(false);
     },
+
     onError: (error) => {
+      const detail = error.response?.data?.detail || error.message || 'Failed to edit image';
+      addMessage({
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `❌ Edit failed: ${detail}`,
+        timestamp: new Date().toISOString(),
+      });
       addNotification({
         type: 'error',
-        title: 'Chat Error',
-        message: error.message || 'Failed to send message',
+        title: 'Edit Failed',
+        message: detail,
       });
       setTyping(false);
     },
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || !activeNodeId) return;
+  // -------------------------------------------------------------------------
+  // Submit handler
+  // -------------------------------------------------------------------------
 
-    const userMessage = {
-      id: Date.now().toString(),
+  const runEdit = (prompt) => {
+    if (!prompt.trim() || !activeNodeId) return;
+
+    lastPromptRef.current = prompt;
+
+    addMessage({
+      id: `user-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: prompt.trim(),
       timestamp: new Date().toISOString(),
-    };
+    });
 
-    addMessage(userMessage);
-    setInput('');
     setTyping(true);
-
-    chatMutation.mutate({
-      prompt: input.trim(),
-      nodeId: activeNodeId,
-    });
+    chatMutation.mutate({ prompt: prompt.trim(), nodeId: activeNodeId });
   };
 
-  const handleRetry = (messageId) => {
-    // Retry logic would be implemented here
-    addNotification({
-      type: 'info',
-      title: 'Retry',
-      message: 'Retrying last request...',
-    });
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    runEdit(input.trim());
+    setInput('');
   };
+
+  const handleRetry = () => {
+    if (lastPromptRef.current) {
+      runEdit(lastPromptRef.current);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
 
   return (
     <div className="h-full flex flex-col bg-adobe-panel">
       {/* Header */}
       <div className="px-4 py-3 border-b border-adobe-border">
-        <h3 className="text-sm font-semibold text-adobe-text">AI Assistant</h3>
+        <h3 className="text-sm font-semibold text-adobe-text flex items-center gap-2">
+          <Wand2 size={14} className="text-adobe-accent" />
+          AI Assistant
+        </h3>
         <p className="text-xs text-adobe-textMuted mt-0.5">
-          Describe what you want to do with your image
+          Describe what you want to do with the selected image
         </p>
       </div>
 
@@ -180,9 +274,10 @@ function ChatPanel() {
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-center">
             <div>
-              <p className="text-adobe-textMuted text-sm mb-2">No messages yet</p>
+              <Wand2 size={28} className="mx-auto mb-3 text-adobe-textMuted opacity-50" />
+              <p className="text-adobe-textMuted text-sm mb-1">No messages yet</p>
               <p className="text-adobe-textMuted text-xs">
-                Start a conversation by describing your edit
+                Select a node in the tree, then describe your edit
               </p>
             </div>
           </div>
@@ -192,10 +287,12 @@ function ChatPanel() {
               <ChatMessage
                 key={message.id}
                 message={message}
-                onRetry={() => handleRetry(message.id)}
+                onRetry={message.role === 'assistant' ? handleRetry : null}
               />
             ))}
-            {isTyping && <TypingIndicator />}
+            <AnimatePresence>
+              {isTyping && <TypingIndicator key="typing" />}
+            </AnimatePresence>
             <div ref={messagesEndRef} />
           </>
         )}
@@ -208,7 +305,7 @@ function ChatPanel() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your edit..."
+            placeholder={activeNodeId ? 'Describe your edit…' : 'Select a node first…'}
             disabled={chatMutation.isPending || !activeNodeId}
             className="flex-1 input-field text-sm"
           />
@@ -216,6 +313,7 @@ function ChatPanel() {
             type="submit"
             disabled={chatMutation.isPending || !input.trim() || !activeNodeId}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send"
           >
             {chatMutation.isPending ? (
               <Loader2 size={18} className="animate-spin" />
@@ -224,9 +322,10 @@ function ChatPanel() {
             )}
           </button>
         </form>
+
         {!activeNodeId && (
           <p className="text-xs text-adobe-warning mt-2">
-            Select a version from the tree to start editing
+            ⚠ Select a version from the tree to start editing
           </p>
         )}
       </div>

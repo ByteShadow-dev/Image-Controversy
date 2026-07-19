@@ -38,7 +38,11 @@ async def get_tree(tree_id: str):
         raise HTTPException(status_code=404, detail="Tree not found")
 
     # Query with ObjectId so the lookup matches how the tree relationship is stored.
-    nodes = await image_collection.find({"tree_id": ObjectId(tree_id)}).to_list(None)
+    # A stable order makes the version graph deterministic when sibling edits
+    # are created concurrently.
+    nodes = await image_collection.find({"tree_id": ObjectId(tree_id)}).sort(
+        "created_at", 1
+    ).to_list(None)
 
     return TreeResponse(
         tree=Tree.model_validate(tree),

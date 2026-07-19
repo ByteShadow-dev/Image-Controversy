@@ -1,9 +1,20 @@
+"""
+groq_service.py
+===============
+Handles communication with the Groq API for instruction classification.
+
+parse_instruction
+  Accepts an InstructionRequest, calls the Groq LLM to classify the user's
+  prompt into a structured ParsedInstructionResponse (category + operation).
+  The actual image processing is delegated to PipelineImageEditor so that
+  this module stays single-purpose.
+"""
+
 import json
 from groq import Groq, GroqError
 from fastapi import HTTPException, status
-from app.models.image import InstructionRequest, ParsedInstructionResponse, EditedImageResponse, ImageNode
+from app.models.image import InstructionRequest, ParsedInstructionResponse
 from app.core.database import get_database
-from app.services.background_removal import remove_background
 
 image_nodes = get_database("images")
 
@@ -28,27 +39,29 @@ You MUST return your response as a valid JSON object matching this schema:
 }
 """
 
-async def parse_instruction(payload: InstructionRequest):
+async def parse_instruction(payload: InstructionRequest) -> ParsedInstructionResponse:
+    """
+    Calls the Groq API to classify the user instruction and returns a
+    ParsedInstructionResponse with category, operation, image_path, tree_id.
+    """
     MODEL_ID = "openai/gpt-oss-20b"
-    
+
     try:
-        # Call Groq API forcing a JSON object return
         chat_completion = groq_client.chat.completions.create(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": f"Parse this instruction: '{payload.user_instruction}'"}
             ],
             model=MODEL_ID,
-            temperature=0.0, # 0.0 makes it deterministic and accurate for classification
-            response_format={"type": "json_object"} # Forces JSON structure
+            temperature=0.0,           # deterministic classification
+            response_format={"type": "json_object"}
         )
-        
-        # Extracted response string
+
         raw_json_output = chat_completion.choices[0].message.content
         data = json.loads(raw_json_output)
         data["image_path"] = payload.image_path
-        data['tree_id'] = payload.tree_id
-        # Pydantic parses and validates the JSON string into the required response schema
+        data["tree_id"] = payload.tree_id
+
         validated_response = ParsedInstructionResponse.model_validate(data)
         return validated_response
 
@@ -56,40 +69,14 @@ async def parse_instruction(payload: InstructionRequest):
         if "rate_limit" in str(ge).lower():
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Groq Free Tier rate limit hit. Try again in a moment."
+                detail="Groq Free Tier rate limit hit. Try again in a moment.",
             )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Groq processing error: {str(ge)}"
+            detail=f"Groq processing error: {str(ge)}",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Parser Error: {str(e)}"
+            detail=f"Internal Parser Error: {str(e)}",
         )
-        
-async def edit_image(payload: InstructionRequest):
-    parsed: ParsedInstructionResponse = await parse_instruction(payload)
-    node = ImageNode(
-        tree_id=payload.tree_id,
-        parent_id=None,
-        image_path=payload.image_path,
-        edit=parsed,
-        status="Pending"
-    )
-    if parsed.category == "Background Removal":
-        # remove_background(payload.image_path, f"{payload.image_path}_output.png")
-        node.status = "Completed"
-        node.image_path = f"{payload.image_path}_output.png"
-        await image_nodes.insert_one(node.model_dump(by_alias=True, exclude_none=True))
-        
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported category: {parsed.category}"
-        )  
-    return EditedImageResponse(
-        tree_id=payload.tree_id,
-        image_path=f"{payload.image_path}_output.png",
-        explaination=parsed.category,
-    )

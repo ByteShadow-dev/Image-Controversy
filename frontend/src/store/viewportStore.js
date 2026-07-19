@@ -16,15 +16,15 @@ export const useViewportStore = create((set, get) => ({
   }),
   
   zoomIn: () => set((state) => {
-    const currentIndex = ZOOM_LEVELS.findIndex(z => z >= state.zoom);
-    const nextIndex = Math.min(currentIndex + 1, ZOOM_LEVELS.length - 1);
-    return { zoom: ZOOM_LEVELS[nextIndex] };
+    // Find the first level strictly greater than current zoom
+    const nextLevel = ZOOM_LEVELS.find(z => z > state.zoom + 0.001);
+    return { zoom: nextLevel ?? ZOOM_LEVELS[ZOOM_LEVELS.length - 1] };
   }),
   
   zoomOut: () => set((state) => {
-    const currentIndex = ZOOM_LEVELS.findIndex(z => z >= state.zoom);
-    const prevIndex = Math.max(currentIndex - 1, 0);
-    return { zoom: ZOOM_LEVELS[prevIndex] };
+    // Find the last level strictly less than current zoom
+    const prevLevel = [...ZOOM_LEVELS].reverse().find(z => z < state.zoom - 0.001);
+    return { zoom: prevLevel ?? ZOOM_LEVELS[0] };
   }),
   
   fitToScreen: () => set({ zoom: DEFAULT_ZOOM, pan: { x: 0, y: 0 } }),

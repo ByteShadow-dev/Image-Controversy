@@ -1,7 +1,7 @@
 import { apiClient } from './api';
 
 export const getNode = async (nodeId) => {
-  const response = await apiClient.get(`/node/${nodeId}`);
+  const response = await apiClient.get(`/images/${nodeId}`);
   return response.data;
 };
 

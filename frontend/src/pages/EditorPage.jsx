@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import EditorLayout from '../layouts/EditorLayout';
 import ImageCanvas from '../features/canvas/components/ImageCanvas';
-import { useProjectStore, useUIStore } from '../store';
+import { useProjectStore, useUIStore, useTreeStore } from '../store';
 import { getTree } from '../services';
 import { useQuery } from '@tanstack/react-query';
 
@@ -10,6 +10,7 @@ function EditorPage() {
   const { projectId } = useParams();
   const { setProject } = useProjectStore();
   const { setConnectionStatus } = useUIStore();
+  const { setTree, setActiveNode, activeNodeId } = useTreeStore();
 
   const { data: treeData, isLoading, error } = useQuery({
     queryKey: ['tree', projectId],
@@ -22,6 +23,16 @@ function EditorPage() {
       setProject(projectId, `Project ${projectId.slice(0, 8)}`);
     }
   }, [projectId, setProject]);
+
+  useEffect(() => {
+    if (treeData) {
+      setTree(treeData);
+      if (!activeNodeId && treeData.tree?.root_node_id) {
+        // If there's no active node yet, activate the root node
+        setActiveNode(treeData.tree.root_node_id);
+      }
+    }
+  }, [treeData, setTree, setActiveNode, activeNodeId]);
 
   useEffect(() => {
     if (error) {

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 from typing import Optional
 from app.models.pyobjectid import PyObjectId
 
@@ -28,6 +29,8 @@ class ImageNode(BaseModel):
     image_path: str          
     edit: ParsedInstructionResponse
     status: str = Field(..., description="Pending, Completed, Failed")
+    image_hash: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {
         "populate_by_name": True,
