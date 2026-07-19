@@ -8,9 +8,9 @@ from PIL import Image
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
 
-MODEL_URL = "https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2"
+MODEL_URL = os.getenv("MODEL_URL")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
-PEXELS_SEARCH_URL = "https://api.pexels.com/v1/search"
+PEXELS_SEARCH_URL = os.getenv("PEXELS_SEARCH_URL")
 
 STYLE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "styles")
 
