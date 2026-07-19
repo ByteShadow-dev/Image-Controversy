@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-adobe-border;
+  }
+  
+  body {
+    @apply bg-adobe-dark text-adobe-text antialiased;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-adobe-darker;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-adobe-border rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-adobe-textMuted;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-adobe-panel border border-adobe-border rounded-lg;
+  }
+  
+  .btn-primary {
+    @apply bg-adobe-accent hover:bg-adobe-accentHover text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 flex items-center gap-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-adobe-panel hover:bg-adobe-border text-adobe-text px-4 py-2 rounded-md font-medium transition-colors duration-150 flex items-center gap-2;
+  }
+  
+  .btn-icon {
+    @apply p-2 hover:bg-adobe-border rounded-md transition-colors duration-150 flex items-center justify-center;
+  }
+  
+  .input-field {
+    @apply bg-adobe-dark border border-adobe-border rounded-md px-3 py-2 text-adobe-text focus:outline-none focus:border-adobe-accent transition-colors duration-150;
+  }
+  
+  .tree-node {
+    @apply flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer hover:bg-adobe-border transition-colors duration-150;
+  }
+  
+  .tree-node-active {
+    @apply bg-adobe-accent/20 border border-adobe-accent;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.adobe.border') theme('colors.adobe.darker');
+  }
+}
