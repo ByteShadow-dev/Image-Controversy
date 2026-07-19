@@ -20,6 +20,18 @@ The backend uses:
 
 The frontend uses React, Vite, and UI libraries to interact with the API and render session state.
 
+## Run the Project
+
+Open two terminals from the repository root and run:
+
+```bash
+cd frontend && npm run dev
+```
+
+```bash
+cd backend && uvicorn app.main:app --reload
+```
+
 ## Repository structure
 
 - `/backend`
