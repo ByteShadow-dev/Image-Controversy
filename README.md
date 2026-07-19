@@ -89,13 +89,16 @@ If this fails with a version-resolution error (e.g. `No matching distribution fo
 5. Create a `.env` file in `backend/` (same folder as `requirements.txt` and `main.py`) with:
 
 ```env
-GROQ_API_KEY=your_groq_api_key_here
+GROQ_API_KEY=your_groq_api_key
 MONGO_URI=mongodb://localhost:27017
-DATABASE_NAME=your_database_name_here
-PEXELS_API_KEY=your_pexels_api_key_here
+DATABASE_NAME=my_database
+PEXELS_API_KEY=your_pexels_api_key
+PEXELS_SEARCH_URL=https://api.pexels.com/v1/search
+HF_TOKEN=your_huggingface_token
 ```
 
    - `GROQ_API_KEY` — required for instruction parsing. Get one at https://console.groq.com/keys.
    - `MONGO_URI` — use `mongodb://localhost:27017` for a local install (Option B above), or your Atlas connection string for Option A.
    - `DATABASE_NAME` — any name you want MongoDB to use for this project's collections.
-   - `PEXELS_API_KEY` —
+   - `PEXELS_API_KEY` — api key to search images on pexels
+   - `HF_TOKEN` — required to call models hosted on hugging face
