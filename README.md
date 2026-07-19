@@ -20,16 +20,6 @@ The backend uses:
 
 The frontend uses React, Vite, and UI libraries to interact with the API and render session state.
 
-## Run the Project
-
-Open two terminals from the repository root and run:
-
-```bash
-cd frontend && npm run dev
-```
-
-```bash
-cd backend && uvicorn app.main:app --reload
 ```
 
 ## Repository structure
@@ -114,3 +104,14 @@ HF_TOKEN=your_huggingface_token
    - `DATABASE_NAME` — any name you want MongoDB to use for this project's collections.
    - `PEXELS_API_KEY` — api key to search images on pexels
    - `HF_TOKEN` — required to call models hosted on hugging face
+
+## Run the Project
+
+Open two terminals from the repository root and run:
+
+```bash
+cd frontend && npm run dev
+```
+
+```bash
+cd backend && uvicorn app.main:app --reload
