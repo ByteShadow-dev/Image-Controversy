@@ -16,6 +16,7 @@ class ParsedInstructionResponse(BaseModel):
     )
     operation: str
     image_path: str
+    explanation: str = ""
 
 class EditedImageResponse(BaseModel):
     tree_id: PyObjectId
@@ -29,6 +30,7 @@ class ImageNode(BaseModel):
     image_path: str          
     edit: ParsedInstructionResponse
     status: str = Field(..., description="Pending, Completed, Failed")
+    explanation: str = ""
     image_hash: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

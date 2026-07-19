@@ -108,6 +108,7 @@ async def upload_root_image(
             operation="Original",
             image_path=saved_path,
             explanation="Original uploaded image.",
+            explanation="Original uploaded image.",
         ),
         status="Completed",
         # image_hash=file_hash,
